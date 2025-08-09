@@ -37,7 +37,29 @@ body {
   padding: 2rem;
 }
 
-.search-form {
+.linkNav {
+  text-decoration: none;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 0 6px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.linkNav:hover {
+  background: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+.linkNav:active {
+  background: white;
+  color: #6a1b9a;
+}
+
+form {
   background: white;
   padding: 2rem;
   border-radius: 12px;

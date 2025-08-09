@@ -153,6 +153,8 @@ async function getLatestBlock() {
 }
 
 // API Routes
+
+// Transactions endpoint
 app.get('/api/transactions', async (req, res) => {
   try {
     const { address, startBlock } = req.query;
@@ -180,7 +182,7 @@ app.get('/api/transactions', async (req, res) => {
       startBlock: parseInt(startBlock), 
       endBlock: endBlock, 
       action: "txlist",
-      step: 500000,
+      step: 1000000,
       concurrency: 5 
     });
 
@@ -232,6 +234,75 @@ app.get('/api/transactions', async (req, res) => {
       error: 'Failed to fetch transactions',
       details: error.message 
     });
+  }
+});
+
+// Balance at date endpoint
+// ETH balance at date endpoint
+app.get('/api/balanceAtDate', async (req, res) => {
+  try {
+    const { address, date, contractAddress } = req.query;
+    if (!address || !date) {
+      return res.status(400).json({ error: 'Address and date are required' });
+    }
+    const cleanAddress = address.trim();
+    if (!/^0x[a-fA-F0-9]{40}$/.test(cleanAddress)) {
+      return res.status(400).json({ error: 'Invalid Ethereum address format' });
+    }
+    const cleanContractAddress = contractAddress ? contractAddress.trim() : null;
+    if (!/^0x[a-fA-F0-9]{40}$/.test(cleanContractAddress)) {
+      return res.status(400).json({ error: 'Invalid ContractAddress address format' });
+    }
+    // Pretvori datum v timestamp (YYYY-MM-DD 00:00 UTC)
+    const targetTime = Math.floor(new Date(date + 'T00:00:00Z').getTime() / 1000);
+    console.log(`Fetching balance for address ${address} at date ${date} (timestamp: ${targetTime})`);
+    // Najdi najbližji block pred ali ob tem času
+    const blockResp = await axios.get(url, {
+      params: {
+        module: 'block',
+        action: 'getblocknobytime',
+        timestamp: targetTime,
+        closest: 'before',
+        apikey: ETHERSCAN_KEY
+      }
+    });
+    const blockNumber = blockResp.data.result;
+    const hexBlock = "0x" + blockNumber.toString(16);
+    // Pridobi balance na tem blocku
+    const balanceResp = await axios.get(url, {
+      params: {
+        module: 'account',
+        action: 'balance',
+        address: cleanAddress,
+        tag: blockNumber,
+        apikey: ETHERSCAN_KEY
+      }
+    });
+    console.log(`Balance for ${address} at block ${blockNumber} (${date}): ${balanceResp.data.result}`);
+    // Pridobi token balance, če je podan contract address
+    if(contractAddress != null && contractAddress !== '') {
+      tokenBalance = await axios.get(url, {
+        params: {
+          module: 'account',
+          action: 'tokenbalance',
+          contractaddress: cleanContractAddress,
+          address: cleanAddress,
+          tag: blockNumber,
+          apikey: ETHERSCAN_KEY
+        }
+      });
+      console.log(`Token balance for ${address} at block ${blockNumber} (${date}): ${tokenBalance.data.result}`);
+    }
+
+
+    res.json({
+      success: true,
+      balance: balanceResp.data.result? balanceResp.data.result : '0',
+      tokenBalance: contractAddress ? tokenBalance.data.result : null,
+      blockNumber
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch balance', details: error.message });
   }
 });
 
